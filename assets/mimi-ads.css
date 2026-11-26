@@ -1,0 +1,41 @@
+/* Mimi English — advertising layout (Monetag). Same scheme as Garment Academy.
+   DESKTOP (>= 1366px): permanent right column #mimi-side (352px, full window height). The app is pushed left.
+     Top  = lesson list (#cur is moved here while the "Học" tab is open; other tabs show a shortcut back to lessons).
+     Bottom = 3 blank slots reserved for Monetag In-Page Push banners.
+   TABLET (821-1365px): no column; the push zone floats bottom-right.
+   MOBILE (<= 820px): one banner slot in normal flow at the very top (#mimi-ad-top); the app starts below it. */
+:root { --ad-side-w: 352px; --ad-slot-h: 92px; }
+#mimi-ad-top, #mimi-ad-push, #mimi-side { display: none; }
+
+@media (min-width: 821px) and (max-width: 1365px) {
+  #mimi-ad-push { display: block; position: fixed; right: 12px; bottom: 12px; width: 300px; height: 300px; pointer-events: none; z-index: 2147483000; background: transparent; }
+}
+@media (min-width: 1366px) {
+  html.has-ad-side body { padding-right: calc(var(--ad-side-w) + 16px); }
+  html.has-ad-side .toast { left: calc(50% - var(--ad-side-w) / 2); }
+  #mimi-side {
+    display: flex; flex-direction: column; position: fixed; top: 0; right: 0; bottom: 0; width: var(--ad-side-w);
+    box-sizing: border-box; z-index: 45; background: var(--surface2, #f4f6fc); border-left: 1px solid var(--line, #dde2f3);
+    font-family: var(--body, system-ui, sans-serif); color: var(--ink, #151a3b);
+  }
+  .mimi-side-panel { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px 12px 10px; }
+  .mimi-side-panel .cur { position: static; max-height: none; overflow: visible; box-shadow: none; background: transparent; padding: 0; border-radius: 0; }
+  html.has-ad-side:not(.mimi-learn) #mimi-side #cur { display: none; }
+  .mimi-side-go { display: none; }
+  html.has-ad-side:not(.mimi-learn) .mimi-side-go { display: block; }
+  .mimi-side-go button { width: 100%; padding: 12px 14px; border-radius: 14px; background: var(--surface, #fff); box-shadow: var(--shadow); font-weight: 800; text-align: left; }
+  .mimi-side-go button:hover { background: var(--line, #dde2f3); }
+  html.has-ad-side .learn { grid-template-columns: minmax(0, 1fr); }
+  .mimi-side-slots { flex: 0 0 auto; display: grid; grid-template-rows: repeat(3, var(--ad-slot-h)); gap: 10px; padding: 12px 10px 14px; border-top: 1px solid var(--line, #dde2f3); }
+  #mimi-ad-push { display: block; position: fixed; right: 10px; bottom: 14px; width: calc(var(--ad-side-w) - 20px); height: calc(var(--ad-slot-h) * 3 + 20px); pointer-events: none; z-index: 2147483000; background: transparent; }
+  #mimi-ad-push > *:nth-child(n+4) { display: none !important; }
+  #mimi-ad-push > * { pointer-events: auto; }
+  @media (max-height: 600px) { :root { --ad-slot-h: 64px; } }
+}
+@media (max-width: 820px) {
+  #mimi-ad-top {
+    display: flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 62px;
+    margin: -14px calc(-1 * max(16px, env(safe-area-inset-right, 0px))) 12px calc(-1 * max(16px, env(safe-area-inset-left, 0px)));
+    padding: 6px; background: var(--surface2, #f4f6fc); border-bottom: 1px solid var(--line, #dde2f3); overflow: hidden;
+  }
+}
