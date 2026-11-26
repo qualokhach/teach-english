@@ -1,0 +1,20 @@
+MIMI-TEACH-ENGLISH - Mimi giang bai tieng Anh dai, tu A1 den C2
+
+CHAY THU
+1. Giai nen, mo terminal trong thu muc nay, chay:  python3 -m http.server 8000
+2. Mo http://localhost:8000  (can Internet cho font va nhac nen; giong Mimi nam trong thu muc assets)
+3. Khi dua len GitHub/Vercel: dua CA index.html, sw.js, manifest.webmanifest, cac icon va thu muc assets.
+
+BAI GIANG DAI
+- 6 cap (A1, A2, B1, B2, C1, C2). Moi bai la mot buoi giang tron ven cua Mimi:
+  Mo dau > Tu moi (8 tu/phan: tu - noi theo - vi du - on nhanh) > Mau cau > Hoi thoai (Mimi va Leo)
+  > Bai doc (nghe ca bai, nghe lai doc theo, cau hoi) > Ngu phap (cong thuc, cach dung, vi du, meo, luyen tap)
+  > Meo hoc > On tap cuoi bai > Ket bai.
+- Do dai chon trong Cai dat (nut thanh truot goc tren phai): Ngan ~15 phut, Vua ~30 phut, Dai ~45 phut.
+  (Ngan: 145 bai, Vua: 72 bai, Dai: 47 bai. App tu tai lai khi doi.)
+- Bang giang ben canh Mimi hien tu vong, cong thuc, doan doc (cau dang doc duoc to vang), dap an.
+- Quay video: tab "Quay video", chon bai va "Phan" (tung phan) hoac "Ca bai". Bai 45 phut nen quay tung phan cho nhe may.
+
+NOI DUNG
+Ghep tu kho cua Mimi English: ~5.000 tu va cau, 300 bai doc, 86 the ngu phap. Giong Mimi, 3D, nhac nen, khoa Pro giu nguyen nhu app goc.
+Tien trinh luu rieng (khoa mimi-teach-v1), khong lan voi app Mimi English.
