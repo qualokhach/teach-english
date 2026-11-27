@@ -1516,7 +1516,7 @@ const LEVELS=[
     {q:'Chọn câu nói về tương lai:',o:['I will go to the beach.','I went to the beach.','I go to the beach every day.','I am at the beach.'],a:0,why:'Will = sẽ.'}]}
  ]}
 ];
-function vocabOf(l){const out=[];l.parts.forEach(p=>p.steps.forEach(s=>{if(s.k==='v'&&s.w)out.push(s)}));return out}
+function vocabOf(l){const out=[],seen={};l.parts.forEach(p=>p.steps.forEach(s=>{if(s.k==='v'&&s.w&&!seen[s.w]){seen[s.w]=1;out.push(s)}}));return out}
 function allVocab(){const out=[];LESSONS.forEach(l=>vocabOf(l).forEach(v=>out.push(Object.assign({lid:l.id},v))));return out}
 const EMO={hello:'\u{1F44B}',goodbye:'\u{1F44B}','thank you':'\u{1F64F}',sorry:'\u{1F614}',please:'\u{1F97A}',run:'\u{1F3C3}',jump:'\u{1F938}',dance:'\u{1F483}',sleep:'\u{1F634}',read:'\u{1F4D6}',eat:'\u{1F37D}\uFE0F'};
 const picOf=v=>{if(v.obj)return{obj:v.obj,tint:v.tint,n:v.n,opt:v.opt};if(v.prep)return{prep:v.prep};const e=v.emo||EMO[v.w];return e?{obj:e}:null};
@@ -7307,8 +7307,8 @@ const IC={
 };
 
 /* ---------- state ---------- */
-/* ===== MIMI-TEACH-ENGLISH: ghép bài giảng dài (từ mới, câu, hội thoại, bài đọc, ngữ pháp, mẹo, ôn tập) ===== */
-let TLEN=15;try{TLEN=+localStorage.getItem('teach-len')||30}catch(e){TLEN=30}
+/* ===== MIMI-TEACH-ENGLISH v2: bài giảng từ tốn, có ngắt nghỉ, nhấn từ, phân tích câu, bài tập ===== */
+let TLEN=30;try{TLEN=+localStorage.getItem('teach-len')||30}catch(e){}
 if(![15,30,45].includes(TLEN))TLEN=30;
 const TCF=[['A1','Cấp A1 · Khởi đầu','Từ và câu đầu tiên','#12b886',[1,2]],['A2','Cấp A2 · Sơ cấp','Giao tiếp quen thuộc','#3d6bff',[3,4]],['B1','Cấp B1 · Trung cấp','Kể chuyện, nêu ý kiến','#ff8a3d',[5,6]],['B2','Cấp B2 · Khá','Thảo luận, cụm động từ','#7950f2',[7,8]],['C1','Cấp C1 · Nâng cao','Học thuật, sắc thái','#e64980',[9,10]],['C2','Cấp C2 · Thành thạo','Tinh tế như người bản xứ','#862e9c',[11,12]]];
 const TTIPS={
@@ -7318,81 +7318,153 @@ B1:'Learn whole phrases, not only single words.|Học cả cụm từ, không ch
 B2:'Watch videos with English subtitles to notice natural speech.|Xem video có phụ đề tiếng Anh để nghe cách nói tự nhiên.;Learn collocations, such as make a decision and take a break.|Học các cụm đi cùng nhau như make a decision, take a break.;Record yourself and listen for weak sounds.|Tự ghi âm và nghe lại để tìm âm còn yếu.',
 C1:'Read articles in different styles and notice the tone.|Đọc nhiều thể loại bài và để ý giọng văn.;Learn synonyms and choose the best one for the situation.|Học từ đồng nghĩa và chọn từ hợp nhất với tình huống.;Write a short summary of everything you read.|Viết tóm tắt ngắn cho mọi thứ bạn đọc.',
 C2:'Notice idioms and humor, because they carry culture.|Chú ý thành ngữ và sự hài hước, vì chúng mang văn hóa.;Imitate native speakers, copying rhythm and stress.|Bắt chước người bản xứ về nhịp điệu và trọng âm.;Teach someone else. Teaching is the best test of knowledge.|Dạy lại cho người khác. Đó là cách kiểm tra kiến thức tốt nhất.'};
-const tWc=s=>(s||'').split(/\s+/).filter(Boolean).length,tDur=st=>Math.max(1.5,tWc(st.en)*.42+.8)+.5;
+const TL3=['A','B','C','D'];
+const tWc=s=>(s||'').split(/\s+/).filter(Boolean).length;
+const tEsc=w=>w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+const tRx=(w,f)=>new RegExp('\\b'+tEsc(w)+'\\w{0,3}\\b',f||'i');
+/* Kịch bản nói: mảng {t:lời, e:nhấn mạnh, p:nghỉ sau (ms), r:tốc độ nhân} */
+function stepSegs(st){
+  if(st.seg)return st.seg;
+  if(st.k==='n'&&st.en){const ss=st.en.match(/[^.!?]+[.!?]+["”']?/g);if(ss&&ss.length>1)return ss.map(x=>({t:x.trim(),p:450}))}
+  return null}
+function segPlan(st){const base=stepRate(),sg=stepSegs(st)||[{t:st.en,p:0}];return sg.map(x=>({t:x.t,e:x.e,p:x.p||0,r:Math.min(1.6,Math.max(.5,base*(x.r||(x.e?.82:1))))}))}
+const tDur=st=>{const sg=stepSegs(st)||[{t:st.en||'',p:0}];return Math.max(1.5,sg.reduce((a,x)=>a+tWc(x.t)*.48*(x.e?1.3:1)+.35+(x.p||0)/1000,0)+.5)};
 const tSum=a=>a.reduce((t,s)=>t+tDur(s),0);
 const tSplit=t=>(t.match(/[^.!?]+[.!?]+["”']?/g)||[t]).map(s=>s.trim());
 const tFsp=f=>f.replace(/\(\+\)/,'Positive.').replace(/\(\s*[−-]\s*\)/,'Negative.').replace(/\(\?\)/,'Question.').replace(/\s\+\s/g,' plus ').replace(/_+/g,'blank');
-const TL3=['A','B','C','D'];
+/* Câu có từ cần học: tách ra, từ đó nói riêng, chậm và rõ */
+function tEmph(en,w,endP){
+  const rx=new RegExp('\\b'+tEsc(w)+'\\w{0,3}\\b[!?.,;:]*','ig'),sg=[];let last=0,m;
+  while((m=rx.exec(en))){if(m.index>last)sg.push({t:en.slice(last,m.index).trim(),p:260});sg.push({t:m[0],e:1,p:380});last=m.index+m[0].length}
+  if(last<en.length)sg.push({t:en.slice(last).trim(),p:0});
+  const out=sg.filter(x=>x.t);if(!out.length)return[{t:en,p:endP||0}];out[out.length-1].p=endP||0;return out}
+const tChunk=s=>{const parts=s.replace(/,\s+/g,',|').replace(/\s+(and|but|because|so|when|while|before|after|if|which|that)\s/gi,'|$1 ').split('|').map(x=>x.trim()).filter(Boolean),o=[];
+  parts.forEach(p=>{if(o.length&&tWc(p)<2)o[o.length-1]+=' '+p;else o.push(p)});return o.map((t,i)=>({t:t,p:i<o.length-1?350:0}))};
+const tSay=(sub,seg,o)=>N(seg.map(x=>x.t).join(' '),sub,Object.assign({seg:seg},o||{}));
+/* Nhận diện ngữ pháp trong câu */
+const NOT_ING='(?!(?:interesting|boring|amazing|exciting|surprising|morning|evening|nothing|something|anything|everything|thing)\\b)',V3='(?:been|gone|done|seen|eaten|taken|made|written|known|given|come|become|lost|found|read|met|\\w+ed)';
+const TPAT=[
+ [new RegExp('\\b(am|is|are)\\s+'+NOT_ING+'\\w+ing\\b','i'),'pc','Present Continuous','am/is/are + V-ing: hành động đang diễn ra'],
+ [new RegExp('\\b(was|were)\\s+'+NOT_ING+'\\w+ing\\b','i'),'pasc','Past Continuous','was/were + V-ing: hành động đang diễn ra trong quá khứ'],
+ [new RegExp('\\b(has|have)\\s+(?:already\\s+|just\\s+|never\\s+|ever\\s+|not\\s+)?'+V3+'\\b','i'),'pp','Present Perfect','have/has + V3: nối quá khứ với hiện tại'],
+ [new RegExp('\\bhad\\s+(?:already\\s+|just\\s+|never\\s+|not\\s+)?'+V3+'\\b','i'),'papf','Past Perfect','had + V3: xảy ra trước một việc khác trong quá khứ'],
+ [/\b(am|is|are)\s+going\s+to\b/i,'gt','Be going to','be going to + V: dự định hoặc dự đoán có căn cứ'],
+ [/\bwill\s+(not\s+)?\w+/i,'fut','Future Simple (will)','will + V: quyết định tức thời, dự đoán'],
+ [/\b(is|are|was|were)\s+\w+(ed|en)\s+by\b/i,'passive','Passive Voice','be + V3 (+ by): câu bị động'],
+ [/\bif\b/i,'cond01','Conditionals','if + mệnh đề: câu điều kiện'],
+ [/\b(can|could|should|must|may|might)\s+\w+/i,m=>({can:'canould',could:'canould',should:'should',must:'musthave',may:'maymight',might:'maymight'})[m[1].toLowerCase()],'Modal verbs','can/could/should/must/may/might + V: khả năng, lời khuyên, bắt buộc'],
+ [/\b\w+er\s+than\b|\bmore\s+\w+\s+than\b|\bthe\s+(most\s+\w+|\w+est)\b/i,'comparison','Comparatives and Superlatives','so sánh hơn và so sánh nhất'],
+ [/\bthere\s+(is|are|was|were)\b/i,'thereit','There is, There are','there is/are + danh từ: có...'],
+ [/\b(yesterday|last\s+\w+|\w+\s+ago)\b/i,'pas','Past Simple','V2/V-ed: việc đã xảy ra, có mốc thời gian trong quá khứ']];
+function tDetect(s){for(const p of TPAT){const m=s.match(p[0]);if(m)return{id:typeof p[1]==='function'?p[1](m):p[1],name:p[2],note:p[3],m:m[0]}}return null}
 
-function tVocab(grp,c){
+/* Hỏi - đáp: đọc câu hỏi, nghỉ cho người học nghĩ, rồi đọc đáp án */
+function tQA(h,s,c,qtext,spoken,opts,okI,tag,after){
+  const rows=[{t:qtext,b:1}].concat(opts.map((o,i)=>TL3[i]+'. '+o)),q=[{t:tag+'.',p:600},{t:spoken,p:700}];
+  opts.forEach((o,i)=>q.push({t:TL3[i]+'.',p:150},{t:o,p:550}));q.push({t:'Think about it.',p:3500});
+  const a=[{t:'The answer is',p:350},{t:TL3[okI]+'.',e:1,p:450},{t:opts[okI]+'.',e:1,p:after?800:0}].concat(after||[]);
+  return [tSay('Câu hỏi: hãy chọn đáp án đúng.',q,{act:'think',board:{h:h,s:s,c:c,rows:rows}}),tSay('Đáp án đúng: '+TL3[okI]+'. '+opts[okI],a,{act:'nod',board:{h:h,s:s,c:c,rows:rows,hl:okI+1}})]}
+
+/* PHẦN TỪ MỚI: số từ - nói theo - câu ví dụ nhấn từ; ôn nhanh sau mỗi 8 từ */
+function tVocab(grp,c,maxS){
   const ws=[],ss=[],ds=[];
   grp.forEach(l=>l.parts.forEach(p=>p.steps.forEach(st=>{if(st.k==='v'&&st.w)ws.push(st);else if(st.k==='s')ss.push(st);else if(st.k==='d')ds.push(st)})));
-  const parts=[];
-  for(let a=0;a<ws.length;a+=8){
-    const ch=ws.slice(a,a+8),steps=[];
-    ch.forEach((w,i)=>{const k=a+i+1;
-      steps.push(Object.assign({},w,{en:'Word number '+k+'. '+cap(w.w)+'. '+cap(w.w)+'.',sub:'Từ số '+k+': '+w.w+' = '+w.vi+'.',tiles:undefined,act:w.act||'point'}));
-      steps.push(Object.assign({},w,{en:'Say it with me. '+w.w+'. '+w.w+'.',sub:'Cùng nói nào: '+w.w+'.',tiles:undefined,act:'nod'}));
-      steps.push(Object.assign({},w,{en:w.ex||w.en,sub:w.sub}));
-    });
-    steps.push(N('Let us review these words. '+ch.map(w=>w.w).join('. ')+'.','Ôn nhanh '+ch.length+' từ vừa học.',{act:'explain',board:{h:'Review · Ôn nhanh',s:'Từ '+(a+1)+' đến '+(a+ch.length),c:c,rows:ch.map(w=>({t:w.w+'  =  '+w.vi}))}}));
-    parts.push(P('Từ mới '+(parts.length+1),'Từ '+(a+1)+' đến '+(a+ch.length),steps));
-  }
-  if(ss.length)parts.push(P('Mẫu câu','Dùng từ trong câu',[N('Now we will see the new words in sentences. Listen and repeat.','Xem các từ vừa học trong câu. Nghe và đọc theo.',{act:'explain'})].concat(ss.slice(0,16))));
-  if(ds.length)parts.push(P('Hội thoại','Mimi và Leo nói chuyện',[N('Now listen to Mimi and Leo talking.','Nghe Mimi và Leo trò chuyện.',{act:'wave'})].concat(ds.slice(0,20))));
-  return {parts:parts,words:ws};
+  const steps=[];
+  ws.forEach((w,i)=>{const k=i+1,W=cap(w.w),base={tiles:undefined};
+    steps.push(Object.assign({},w,base,{act:w.act||'point',seg:[{t:'Word number '+k+'.',p:800},{t:W+'.',e:1,p:1000},{t:W+'.',e:1,p:700}],en:'Word number '+k+'. '+W+'. '+W+'.',sub:'Từ số '+k+': '+w.w+' = '+w.vi}));
+    steps.push(Object.assign({},w,base,{act:'nod',seg:[{t:'Repeat after me.',p:700},{t:W+'.',e:1,p:2200}],en:'Repeat after me. '+W+'.',sub:'Bạn nói theo: '+w.w}));
+    const eg=tEmph(w.ex||w.en,w.w,1800);
+    steps.push(Object.assign({},w,base,{seg:eg,en:eg.map(x=>x.t).join(' '),sub:(w.sub||'')+'  (bạn thử nói lại câu)'}));
+    if((i+1)%8===0||i===ws.length-1){const a0=Math.floor(i/8)*8,ch=ws.slice(a0,i+1);
+      steps.push(tSay('Ôn nhanh '+ch.length+' từ vừa học.',[{t:'Let us review.',p:700}].concat(ch.map(x=>({t:cap(x.w)+'.',e:1,p:900}))),{act:'explain',board:{h:'Review · Ôn nhanh',s:'Từ '+(a0+1)+' đến '+(i+1),c:c,rows:ch.map(x=>({t:x.w+'  =  '+x.vi}))}}))}
+  });
+  if(ss.length){steps.push(N('Now let us see the new words in sentences. Listen, then repeat.','Xem các từ vừa học trong câu. Nghe rồi đọc theo.',{act:'explain'}));
+    ss.slice(0,maxS).forEach(st=>steps.push(Object.assign({},st,{seg:[{t:st.en,p:1700}]})))}
+  return {steps:steps,words:ws,ds:ds}
 }
-function tRead(r,k,c){
-  const ss=tSplit(r.text),win=i=>{const a=Math.max(0,Math.min(i-1,ss.length-5));return{h:r.t,s:r.vi,c:c,rows:ss.slice(a,a+5),hl:i-a}};
-  const out=[N('Reading number '+k+': '+r.t+'. First, listen to the whole story.','Bài đọc '+k+': '+r.vi+'. Trước tiên hãy nghe cả bài.',{act:'read',board:{h:r.t,s:r.vi,c:c,rows:ss.slice(0,5)}})];
-  ss.forEach((s,i)=>out.push(N(s,i?'':r.gist,{act:'read',board:win(i)})));
-  out.push(N('Now listen again, and repeat after me.','Nghe lại lần nữa và đọc theo Mimi.',{act:'wave'}));
-  ss.forEach((s,i)=>out.push(N(s,'',{act:'read',board:win(i)})));
-  out.push(N('Now, some questions about the story.','Bây giờ là vài câu hỏi về bài đọc.',{act:'think'}));
-  r.q.forEach((q,j)=>{const ok=Math.max(0,q.opts.findIndex(o=>o.ok)),rows=[{t:q.q,b:1}].concat(q.opts.map((o,x)=>TL3[x]+'. '+o.t));
-    out.push(N('Question '+(j+1)+'. '+q.q+' '+q.opts.map((o,x)=>TL3[x]+'. '+o.t+'.').join(' '),'Câu hỏi '+(j+1)+': chọn đáp án đúng.',{act:'think',board:{h:'Question '+(j+1),s:r.t,c:c,rows:rows}}));
-    out.push(N('The answer is '+TL3[ok]+'. '+q.opts[ok].t+'.','Đáp án đúng: '+TL3[ok]+'.',{act:'nod',board:{h:'Question '+(j+1),s:r.t,c:c,rows:rows,hl:ok+1}}))});
-  return P('Bài đọc '+k,r.vi,out);
+/* PHẦN HỘI THOẠI VÀ BÀI ĐỌC: đọc theo cụm, phân tích từ mới và ngữ pháp từng câu, hỏi đáp */
+function tRead(r,k,c,ws,maxA){
+  const ss=tSplit(r.text),win=i=>{const a=Math.max(0,Math.min(i-1,ss.length-5));return{h:r.t,s:r.vi,c:c,rows:ss.slice(a,a+5),hl:i-a}},o=[],gids=[];
+  o.push(N('Now let us read a short text that uses some of our new words. First, just listen.','Đọc một đoạn ngắn có dùng từ vừa học. Trước hết hãy nghe.',{act:'read',board:{h:r.t,s:r.vi,c:c,rows:ss.slice(0,5)}}));
+  ss.forEach((s,i)=>o.push(tSay(i?'':r.gist,tChunk(s),{act:'read',board:win(i)})));
+  o.push(N('Now let us look closely at the sentences. Listen to each part.','Bây giờ phân tích kỹ từng câu: từ mới và ngữ pháp.',{act:'explain'}));
+  let na=0;
+  ss.forEach((s,i)=>{if(na>=maxA)return;
+    const hits=ws.filter(w=>tRx(w.w).test(s)).slice(0,3),g=tDetect(s);if(!hits.length&&!g)return;na++;if(g)gids.push(g.id);
+    const sg=[{t:'Sentence '+(i+1)+'.',p:500}];tChunk(s).forEach(x=>sg.push({t:x.t,r:.85,p:x.p+200}));sg[sg.length-1].p=700;
+    hits.forEach(h=>sg.push({t:'Key word.',p:300},{t:cap(h.w)+'.',e:1,p:900}));
+    if(g)sg.push({t:'Grammar note.',p:400},{t:g.name+'.',e:1,p:500},{t:g.m,p:0});
+    const rows=[{t:s,b:1}].concat(hits.map(h=>({t:'⭐ '+h.w+' = '+h.vi,c:'#12805f'})),g?[{t:'🧩 '+g.name+': '+g.note,c:'#c2255c'}]:[]);
+    o.push(tSay(hits.map(h=>h.w+' = '+h.vi).join(' · ')+(g?(hits.length?'  |  ':'')+g.note:''),sg,{act:'point',board:{h:'Phân tích câu '+(i+1),s:r.t,c:c,rows:rows}}))});
+  o.push(N('Now, some questions about the text.','Bây giờ là vài câu hỏi về bài đọc.',{act:'think'}));
+  r.q.forEach((q,j)=>{const ok=Math.max(0,q.opts.findIndex(x=>x.ok));tQA('Question '+(j+1),r.t,c,q.q,q.q,q.opts.map(x=>x.t),ok,'Question '+(j+1)).forEach(x=>o.push(x))});
+  return {steps:o,gids:gids}
 }
+/* NGỮ PHÁP */
 function tGram(g,c){
   const B=(rows,hl,s)=>({h:g.t,s:s||g.vi+' · '+g.lv,c:c,rows:rows,hl:hl}),o=[];
   o.push(N('Grammar time! Today we study '+g.t+'.','Ngữ pháp: '+g.vi+' ('+g.lv+').',{act:'explain',board:B([{t:g.def,b:1}])}));
   o.push(N('Here is the formula. Look at the screen.','Công thức:',{act:'point',board:B(g.forms)}));
-  g.forms.forEach((f,i)=>o.push(N(tFsp(f),f,{act:'point',board:B(g.forms,i)})));
+  g.forms.forEach((f,i)=>o.push(tSay(f,[{t:tFsp(f),p:1000}],{act:'point',board:B(g.forms,i)})));
   o.push(N('There are '+g.use.length+' main uses.','Các cách dùng chính:',{act:'explain',board:B(g.use,undefined,'Cách dùng')}));
-  g.use.forEach((u,i)=>o.push(N('Use number '+(i+1)+'.',u,{act:'explain',board:B(g.use,i,'Cách dùng')})));
-  if(g.sig.length)o.push(N('Signal words: '+g.sig.join(', ')+'.','Dấu hiệu nhận biết: '+g.sig.join(' · '),{act:'point',board:B(g.sig,undefined,'Dấu hiệu nhận biết')}));
-  o.push(N('Now, some examples. Listen and repeat.','Các ví dụ. Nghe và đọc theo.',{act:'wave'}));
-  g.ex.forEach(e=>o.push(e.tiles?S(e.tiles,e.vi,{obj:e.obj||undefined}):N(e.en,e.vi)));
-  g.tips.forEach((t,i)=>o.push(N('Tip number '+(i+1)+'. Read it on the screen and remember it.',t,{act:'think',board:B([{t:t,b:1}],undefined,'Mẹo ghi nhớ')})));
-  g.q.forEach((q,j)=>{const ok=Math.max(0,q.opts.findIndex(x=>x.ok)),rows=[{t:q.q,b:1}].concat(q.opts.map((x,i)=>TL3[i]+'. '+x.t));
-    o.push(N('Practice '+(j+1)+'. '+q.q.replace(/_+/g,'blank')+' '+q.opts.map((x,i)=>TL3[i]+'. '+x.t+'.').join(' '),'Luyện tập '+(j+1)+': chọn đáp án đúng.',{act:'think',board:B(rows,undefined,'Luyện tập')}));
-    o.push(N('The answer is '+TL3[ok]+'. '+q.opts[ok].t+'.','Đáp án đúng: '+TL3[ok]+'.',{act:'nod',board:B(rows,ok+1,'Luyện tập')}))});
-  return P('Ngữ pháp: '+g.t,g.vi,o);
+  g.use.forEach((u,i)=>o.push(tSay(u,[{t:'Use number '+(i+1)+'.',p:2500}],{act:'explain',board:B(g.use,i,'Cách dùng')})));
+  if(g.sig.length)o.push(tSay('Dấu hiệu nhận biết: '+g.sig.join(' · '),[{t:'Signal words.',p:600},{t:g.sig.join(', ')+'.',p:1500}],{act:'point',board:B(g.sig,undefined,'Dấu hiệu nhận biết')}));
+  o.push(N('Now, some examples. Listen, then repeat.','Các ví dụ. Nghe rồi đọc theo.',{act:'wave'}));
+  g.ex.forEach(e=>o.push(e.tiles?Object.assign(S(e.tiles,e.vi,{obj:e.obj||undefined}),{seg:[{t:e.en,p:1800}]}):tSay(e.vi,[{t:e.en,p:1800}])));
+  g.tips.forEach((t,i)=>o.push(tSay(t,[{t:'Tip number '+(i+1)+'.',p:2500}],{act:'think',board:B([{t:t,b:1}],undefined,'Mẹo ghi nhớ')})));
+  g.q.forEach((q,j)=>{const ok=Math.max(0,q.opts.findIndex(x=>x.ok));tQA(g.t,'Luyện tập',c,q.q,q.q.replace(/_+/g,'blank'),q.opts.map(x=>x.t),ok,'Practice '+(j+1)).forEach(x=>o.push(x))});
+  return o;
 }
+/* BÀI TẬP: chọn từ theo nghĩa, điền từ vào câu */
+function tEx(ws,n,seed,c){
+  let rnd=seed*7919+12345;const R=()=>{rnd=(rnd*9301+49297)%233280;return rnd/233280};
+  const step=Math.max(1,Math.floor(ws.length/n)),o=[];let num=0;
+  for(let i=0;i<n;i++){const w=ws[Math.min(ws.length-1,i*step+Math.floor(step/2))],d=[];let g=0;
+    while(d.length<2&&g++<60){const x=ws[Math.floor(R()*ws.length)];if(x.w!==w.w&&!d.some(y=>y.w===x.w))d.push(x)}
+    if(d.length<2)continue;const all=[w].concat(d).map(x=>({x:x,k:R()})).sort((a,b)=>a.k-b.k).map(z=>z.x),okI=all.indexOf(w),opts=all.map(x=>x.w);num++;
+    const fill=i%2&&w.ex&&tRx(w.w).test(w.ex);
+    if(fill){const blank=w.ex.replace(tRx(w.w),'_____');
+      tQA('Bài tập '+num,'Điền từ còn thiếu',c,blank,'Choose the missing word. '+blank.replace('_____','blank'),opts,okI,'Exercise '+num).forEach(x=>o.push(x))}
+    else tQA('Bài tập '+num,'Chọn từ tiếng Anh đúng',c,'“'+w.vi+'” là từ nào?','Look at the screen. Which English word is it?',opts,okI,'Exercise '+num,[{t:'Say it.',p:300},{t:cap(w.w)+'.',e:1,p:1500}]).forEach(x=>o.push(x))}
+  return o}
 function teachBuild(len){
   const SRC=window.__SRC||(window.__SRC=LEVELS.map(l=>l.lessons.slice()));
-  LEVELS.length=0;LESSONS.length=0;const T=len*60;
+  LEVELS.length=0;LESSONS.length=0;const T=len*60,nR=len>=45?2:1,nG=1,nEx=len>=45?14:(len>=30?10:6),maxS=len>=45?12:8,maxA=len>=45?8:(len>=30?6:4);
   TCF.forEach((cf,ci)=>{
     const lv={id:ci+1,t:cf[1],sub:cf[2],c:cf[3],cefr:cf[0],lessons:[]};LEVELS.push(lv);
-    const pool=[].concat(...cf[4].map(i=>SRC[i-1])),reads=READ.filter(r=>r.lv===cf[0]),grams=GRAM.filter(g=>g.lv===cf[0]);
-    let pi=0,ri=0,gi=0,n=0,wTot=0;
+    const pool=[].concat(...cf[4].map(i=>SRC[i-1])),reads=READ.filter(r=>r.lv===cf[0]),usedR=new Set(),usedG=new Set(),grams=GRAM.filter(g=>g.lv===cf[0]);
+    let pi=0,n=0;
     while(pi<pool.length){
       const grp=[];let vp=null;
-      do{grp.push(pool[pi++]);vp=tVocab(grp,lv.c)}while(pi<pool.length&&tSum([].concat(...vp.parts.map(p=>p.steps)))<T*.52);
-      if(pool.length-pi<2&&pool.length-pi>0){while(pi<pool.length)grp.push(pool[pi++]);vp=tVocab(grp,lv.c)}
-      n++;const parts=vp.parts.slice(),rd=[],gr=[];let rt=0,gt=0;
-      while(rt<T*.2&&reads.length&&rd.length<5){const r=tRead(reads[ri++%reads.length],rd.length+1,lv.c);rd.push(r);rt+=tSum(r.steps)}
-      while(gt<T*.14&&gi<grams.length){const g=tGram(grams[gi++],lv.c);gr.push(g);gt+=tSum(g.steps)}
-      const tips=TTIPS[cf[0]].split(';').map(s=>s.split('|')),tp=P('Mẹo học','Cách học hiệu quả',[N('Now, three study tips from Mimi.','Ba mẹo học từ Mimi.',{act:'wave'})].concat(tips.map((t,i)=>N('Tip number '+(i+1)+'. '+t[0],t[1],{act:'explain',board:{h:'Study tip '+(i+1),s:'Mẹo học '+(i+1),c:lv.c,rows:[{t:t[0],b:1},{t:t[1],c:'#5b6390'}]}}))));
-      const rv=P('Ôn tập','Nhắc lại tất cả từ mới',[N('Final review. Say each word after me.','Ôn lần cuối. Đọc theo Mimi từng từ.',{act:'wave'})].concat(vp.words.map(w=>Object.assign({},w,{en:cap(w.w)+'.',sub:w.w+' = '+w.vi,tiles:undefined,act:'point'}))));
-      const all=parts.concat(rd,gr,[tp,rv]),nw=vp.words.length,mins=Math.max(1,Math.round((tSum([].concat(...all.map(p=>p.steps)))+20)/60));
-      const intro=P('Mở đầu','Mimi chào và giới thiệu bài',[
-        N('Hello! I am Mimi. Welcome to a long lesson. This is level '+cf[0]+', lesson '+n+'.','Xin chào! Mình là Mimi. Chào mừng đến với bài giảng dài. Cấp '+cf[0]+', bài '+n+'.',{act:'wave'}),
-        N('Today you will learn '+nw+' new words'+(rd.length?', read '+rd.length+' short '+(rd.length>1?'stories':'story'):'')+(gr.length?', and study '+gr.map(g=>g.name.replace('Ngữ pháp: ','')).join(' and '):'')+'. This lesson takes about '+mins+' minutes. Let us begin!','Hôm nay: '+nw+' từ mới'+(rd.length?', '+rd.length+' bài đọc':'')+(gr.length?', '+gr.length+' điểm ngữ pháp':'')+'. Bài dài khoảng '+mins+' phút. Bắt đầu nào!',{act:'explain',board:{h:'Hôm nay học gì?',s:cf[0]+' · Bài '+n+' · khoảng '+mins+' phút',c:lv.c,rows:['⭐ '+nw+' từ mới + câu mẫu + hội thoại'].concat(rd.map(r=>'📖 Bài đọc: '+r.name.replace(/^Bài đọc \d+$/,r.vi)),gr.map(g=>'🧩 '+g.name),['💡 Mẹo học và ôn tập cuối bài'])}})]);
-      const outro=P('Kết bài','Tạm biệt',[N('Great job today! You learned '+nw+' new words. Review them tomorrow. See you in the next lesson. Goodbye!','Làm tốt lắm! Hôm nay bạn đã học '+nw+' từ mới. Mai hãy ôn lại nhé. Hẹn gặp lại ở bài sau. Tạm biệt!',{act:'wave'})]);
-      wTot+=nw;const names=grp.slice(0,2).map(l=>l.t).join(', ');
-      lv.lessons.push({id:'t'+len+cf[0]+n,t:names+(grp.length>2?'…':''),vi:'≈ '+mins+' phút · '+nw+' từ'+(rd.length?' · '+rd.length+' bài đọc':'')+(gr.length?' · '+gr.length+' ngữ pháp':''),theme:grp[0].theme,icon:grp[0].icon,quiz:[],gen:true,lv:lv,parts:[intro].concat(all,[outro])});
+      do{grp.push(pool[pi++]);vp=tVocab(grp,lv.c,maxS)}while(pi<pool.length&&tSum(vp.steps)<T*.3);
+      if(pool.length-pi===1){grp.push(pool[pi++]);vp=tVocab(grp,lv.c,maxS)}
+      n++;const ws=vp.words,nw=ws.length;
+      /* hội thoại ngắn + bài đọc liên quan từ vựng */
+      const rp=[],gset=[],rtitles=[];
+      if(vp.ds.length)rp.push(N('Now listen to Mimi and Leo talking.','Nghe Mimi và Leo trò chuyện.',{act:'wave'}));
+      vp.ds.slice(0,8).forEach(d=>rp.push(Object.assign({},d,{seg:[{t:d.en,p:900}]})));
+      const rsel=reads.map((r,i)=>({r:r,i:i,sc:ws.filter(w=>tRx(w.w).test(r.text)).length})).filter(x=>!usedR.has(x.i)).sort((a,b)=>b.sc-a.sc||a.i-b.i).slice(0,nR);
+      rsel.forEach((x,j)=>{usedR.add(x.i);const t=tRead(x.r,j+1,lv.c,ws,maxA);rtitles.push(x.r.vi);t.steps.forEach(s=>rp.push(s));t.gids.forEach(g=>gset.push(g))});
+      /* thẻ ngữ pháp: ưu tiên cái xuất hiện trong bài đọc */
+      const gc=[],pick=g=>{if(g&&!usedG.has(g.id)&&gc.length<nG){usedG.add(g.id);gc.push(g)}};
+      gset.forEach(id=>{const g=GRAM.find(x=>x.id===id);if(g&&TCF.findIndex(x=>x[0]===g.lv)<=ci)pick(g)});
+      grams.forEach(g=>{if(gc.length<nG)pick(g)});
+      const gsteps=[];gc.forEach(g=>tGram(g,lv.c).forEach(s=>gsteps.push(s)));
+      /* bài tập, mẹo, ôn tập cuối */
+      const ex=[N('Now it is your turn. Let us do some exercises. Take your time.','Đến lượt bạn. Làm bài tập nhé, cứ từ từ.',{act:'wave'})].concat(tEx(ws,nEx,n*31+ci,lv.c));
+      const tips=TTIPS[cf[0]].split(';').map(s=>s.split('|')),
+        tp=[N('Now, three study tips from Mimi.','Ba mẹo học từ Mimi.',{act:'wave'})].concat(tips.map((t,i)=>tSay(t[1],[{t:'Tip number '+(i+1)+'.',p:700},{t:t[0],p:1200}],{act:'explain',board:{h:'Study tip '+(i+1),s:'Mẹo học '+(i+1),c:lv.c,rows:[{t:t[0],b:1},{t:t[1],c:'#5b6390'}]}})));
+      const rv=[N('Final review. Say each word after me.','Ôn lần cuối. Đọc theo Mimi từng từ.',{act:'wave'})];
+      for(let a=0;a<nw;a+=8){const ch=ws.slice(a,a+8);rv.push(tSay('Ôn từ '+(a+1)+' đến '+(a+ch.length),ch.map(x=>({t:cap(x.w)+'.',e:1,p:1700})),{act:'point',board:{h:'Final review',s:'Từ '+(a+1)+' đến '+(a+ch.length),c:lv.c,rows:ch.map(x=>({t:x.w+'  =  '+x.vi}))}}))}
+      const gdur=tSum(gsteps),own=gdur>=300&&gsteps.length>0,tail=ex.concat(tp,rv);
+      const total=tSum(vp.steps)+tSum(rp)+gdur+tSum(tail)+60,mins=Math.max(1,Math.round(total/60));
+      const intro=[N('Hello! I am Mimi. Welcome to a long lesson. This is level '+cf[0]+', lesson '+n+'.','Xin chào! Mình là Mimi. Chào mừng đến với bài giảng dài. Cấp '+cf[0]+', bài '+n+'.',{act:'wave'}),
+        N('Today you will learn '+nw+' new words, read a short text'+(gc.length?', and study '+gc.map(g=>g.t).join(' and '):'')+'. Then you will do some exercises. This lesson takes about '+mins+' minutes. Let us begin!','Hôm nay: '+nw+' từ mới, một bài đọc'+(gc.length?', '+gc.length+' điểm ngữ pháp':'')+' và bài tập. Bài dài khoảng '+mins+' phút. Bắt đầu nào!',{act:'explain',board:{h:'Hôm nay học gì?',s:cf[0]+' · Bài '+n+' · khoảng '+mins+' phút',c:lv.c,rows:['⭐ '+nw+' từ mới + câu mẫu','📖 Hội thoại và bài đọc: '+(rtitles[0]||'')].concat(gc.map(g=>'🧩 Ngữ pháp: '+g.t),['✏️ Bài tập, mẹo học và ôn tập'])}})];
+      const outro=[N('Great job today! You learned '+nw+' new words. Review them tomorrow. See you in the next lesson. Goodbye!','Làm tốt lắm! Hôm nay bạn đã học '+nw+' từ mới. Mai hãy ôn lại nhé. Hẹn gặp lại ở bài sau. Tạm biệt!',{act:'wave'})];
+      const parts=[P('Từ mới','Số từ, nói theo, câu ví dụ',intro.concat(vp.steps)),P('Hội thoại và bài đọc','Đọc, phân tích câu, hỏi đáp',rp)];
+      if(own)parts.push(P('Ngữ pháp',gc.map(g=>g.vi).join(', '),gsteps));
+      parts.push(P('Bài tập và ôn tập',own?'Bài tập, mẹo học, ôn lại':'Ngữ pháp, bài tập, ôn lại',(own?[]:gsteps).concat(tail,outro)));
+      lv.lessons.push({id:'t'+len+cf[0]+n,t:grp.slice(0,2).map(l=>l.t).join(', ')+(grp.length>2?'…':''),vi:'≈ '+mins+' phút · '+nw+' từ'+(gc.length?' · '+gc.length+' ngữ pháp':''),theme:grp[0].theme,icon:grp[0].icon,quiz:[],gen:true,lv:lv,parts:parts});
     }
     LESSONS.push(...lv.lessons);
   });
@@ -7401,7 +7473,7 @@ teachBuild(TLEN);
 (function(){const s=document.getElementById('setLen');if(!s)return;s.value=String(TLEN);s.onchange=()=>{try{localStorage.setItem('teach-len',s.value)}catch(e){}location.reload()}})();
 
 const KEY='mimi-teach-v1';
-const DEF_SET={voice:true,vname:'',rate:.9,bi:false,speed:1,sub:'both',music:false,theme:'auto',sfx:true,lv:1,slv:1,sel:true,mvol:.5,rvol:.35,track:'rand',vm:'ai',vmv:3};
+const DEF_SET={voice:true,vname:'',rate:.8,bi:false,speed:1,sub:'both',music:false,theme:'auto',sfx:true,lv:1,slv:1,sel:true,mvol:.5,rvol:.35,track:'rand',vm:'ai',vmv:3};
 const freshST=()=>({xp:0,streak:0,last:'',done:{},qbest:{},words:{},badges:{},rec:0,matchWins:0,dict:{},rd:{},lis:{},gr:{},irr:{},set:Object.assign({},DEF_SET)});
 let ST=freshST();
 function load(){try{const j=JSON.parse(localStorage.getItem(KEY)||'null');if(j){ST=Object.assign(ST,j);ST.set=Object.assign({},DEF_SET,j.set||{});if(ST.set.vmv!==3){ST.set.vm='ai';ST.set.vmv=3}}}catch(e){}}
@@ -7614,7 +7686,7 @@ const stepWho=st=>{const w=st.k==='d'?st.who:'A';return w==='B'?'B':(st.k==='n'|
 const stepRate=()=>Math.min(1.6,Math.max(.5,ST.set.rate*speedMul));
 function nvPrefetch(list,i){
   if(!nvOn()||NV.state<1)return;
-  for(let k=i;k<Math.min(list.length,i+(Eng.low?6:3));k++){const st=list[k].step;if(st&&st.en)nvBuf(st.en,stepWho(st),stepRate()).catch(()=>{})}
+  for(let k=i;k<Math.min(list.length,i+(Eng.low?6:3));k++){const st=list[k].step;if(st&&st.en)segPlan(st).forEach(x=>nvBuf(x.t,stepWho(st),x.r).catch(()=>{}))}
 }
 async function sayNeural(text,o,done,alive){
   try{
@@ -7675,9 +7747,24 @@ function showCard(title,sub,ms){Eng.cardS={title:title,sub:sub,t0:performance.no
 let speedMul=ST.set.speed||1;
 async function doStep(st,tok,o){
   const who=st.k==='d'?st.who:'A',rate=Math.min(1.6,Math.max(.5,ST.set.rate*speedMul)),voice=(o.voice!==undefined)?o.voice:ST.set.voice;
+  const sg=stepSegs(st),bp=who==='B'?.8:(st.k==='n'||st.k==='s'||st.k==='v'?1.05:1.25);
+  if(sg){
+    Eng.sp={en:sg.map(x=>x.t).join(' '),sub:st.sub,hl:true,t0:performance.now(),dur:1,ci:0};Eng.setTalk(who);
+    let off=0;const per=Eng.sp.en.length>60;
+    for(const x of segPlan(st)){
+      if(tok!==runTok)return;
+      if(per){Eng.sp.en=x.t;off=0}
+      Eng.sp.ci=off;const est=estDur(x.t,x.r)*1000,t0=performance.now(),tm=setInterval(()=>{if(Eng.sp)Eng.sp.ci=off+Math.min(.97,(performance.now()-t0)/est)*x.t.length},60);
+      try{await say(x.t,{voice:voice,rate:x.r,who:stepWho(st),pitch:bp*(x.e?1.12:1)})}finally{clearInterval(tm)}
+      if(tok!==runTok)return;
+      if(Eng.sp)Eng.sp.ci=off+x.t.length;off+=per?0:x.t.length+1;
+      if(x.p)await wait(x.p/speedMul);
+    }
+  }else{
   Eng.sp={en:st.en,sub:st.sub,hl:true,t0:performance.now(),dur:estDur(st.en,rate)*1000,ci:null};
   Eng.setTalk(who);
-  await say(st.en,{voice:voice,rate:rate,who:who==='B'?'B':(st.k==='n'||st.k==='s'||st.k==='v'?'N':'A'),pitch:who==='B'?.8:(st.k==='n'||st.k==='s'||st.k==='v'?1.05:1.25)});
+  await say(st.en,{voice:voice,rate:rate,who:who==='B'?'B':(st.k==='n'||st.k==='s'||st.k==='v'?'N':'A'),pitch:bp});
+  }
   if(tok!==runTok)return;
   Eng.setTalk(null);if(Eng.sp)Eng.sp.hl=false;
   if((o.bi!==undefined?o.bi:ST.set.bi)&&st.sub){
@@ -8055,7 +8142,7 @@ async function startRec(){
     try{
       rs.textContent='Đang tải giọng Mimi… (điện thoại có thể mất vài phút, cứ để màn hình sáng)';await nvLoad();
       const lst=buildFlat(l,pi<0?null:pi);rs.dataset.nv='0';
-      for(let k=0;k<lst.length;k++){const st=lst[k].step;if(!st.en)continue;rs.textContent='Đang tạo giọng Mimi '+(k+1)+'/'+lst.length+'…';await nvBuf(st.en,stepWho(st),stepRate())}
+      for(let k=0;k<lst.length;k++){const st=lst[k].step;if(!st.en)continue;rs.textContent='Đang tạo giọng Mimi '+(k+1)+'/'+lst.length+'…';for(const x of segPlan(st))await nvBuf(x.t,stepWho(st),x.r)}
       useNV=true;
     }catch(e){useNV=false;e0=e}
     rs.dataset.nv='0';recUI(false);
