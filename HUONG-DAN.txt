@@ -17,3 +17,7 @@ DO DAI: Cai dat > Do dai moi bai giang: Ngan ~15 / Vua ~30 / Dai ~45 phut. Thoi 
 GIONG: mac dinh toc do 0.8. Khoang nghi tinh theo toc do phat, co the chinh o "Toc do".
 QUAY VIDEO: tab Quay video, chon bai + Phan (4 phan) hoac Ca bai.
 Tien trinh luu rieng (khoa mimi-teach-v1). Khoa Pro, quang cao giu nhu app goc.
+
+QUAY NEN (da bo sung)
+Khi dang quay co the chuyen sang tab/cua so khac: bo hen gio chay trong Worker nen khong bi trinh duyet lam cham, khung hinh van duoc ve khi tab an, man hinh duoc giu sang.
+Van phai de tab mo (khong dong), khong de may ngu, khong tat mang. Nen quay thu mot doan 30 giay truoc khi quay bai dai.
